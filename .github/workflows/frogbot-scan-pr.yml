@@ -35,8 +35,8 @@ jobs:
 
       - uses: jfrog/frogbot@v2
         with:
-          oidc-provider-name: vigneshs-github
-          oidc-audience: jfrog-github-oidc
+          oidc-provider-name: githubtest 
+          oidc-audience: jfrog-support
         env:
           JFROG_CLI_LOG_LEVEL: DEBUG
           # [Mandatory if the two conditions below are met]
