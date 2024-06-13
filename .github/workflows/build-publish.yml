@@ -26,7 +26,7 @@ jobs:
               id: setup-cli
               env:
                 JF_URL: https://${{ secrets.JF_URL }}/
-                JF_PROJECT: 'shivani-proj'
+                JF_PROJECT: 'shiv'
               with:
                   oidc-provider-name: githubtest
                   oidc-audience: jfrog-support
