@@ -13,7 +13,7 @@ jobs:
             - name: Get id token
               env:
                  OIDC_AUDIENCE: 'jfrog-github'
-                 OIDC_PROVIDER: 'san-git-intergation'
+                 OIDC_PROVIDER: 'demo-git-intergation'
               run: |
                     ID_TOKEN=$(curl -sLS -H "User-Agent: actions/oidc-client" -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
                     "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}" | jq .value | tr -d '"')
