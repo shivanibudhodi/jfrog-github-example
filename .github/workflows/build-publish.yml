@@ -31,7 +31,7 @@ jobs:
                  OIDC_AUDIENCE: 'jfrog-github'
                  OIDC_PROVIDER: 'demo-git-intergation'
                  ACCESS_TOKEN: ${{ env.ACCESS_TOKEN }}
-                 JF_URL: ${{ secrets.JF_URL }}
+                 JF_DOCKER_URL: ${{ vars.JF_DOCKER_URL }}
               run: |
-                 docker login $JF_URL --username shivani --password ${ACCESS_TOKEN}
-                 docker pull $JF_URL/vj-docker-remote/hello-world
+                 docker login $JF_DOCKER_URL --username shivani --password ${ACCESS_TOKEN}
+                 docker pull JF_DOCKER_URL/hello-world
