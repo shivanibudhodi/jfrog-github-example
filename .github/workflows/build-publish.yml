@@ -15,12 +15,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Debug step to see the exact OIDC claims GitHub is generating
-      - name: Debug OIDC Claims
-        uses: github/actions-oidc-debugger@main
-        with:
-          audience: '${{ github.server_url }}/${{ github.repository_owner }}'
-
       # 3. Request the Identity Token from GitHub
       - name: Get id token
         env:
@@ -30,7 +24,17 @@ jobs:
           ID_TOKEN=$(curl -sLS -H "User-Agent: actions/oidc-client" -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
           "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}" | jq .value | tr -d '"')
           echo "ID_TOKEN=${ID_TOKEN}" >> $GITHUB_ENV
-          echo "Successfully retrieved GitHub ID Token"
+          echo "Successfully retrieved GitHub ID Token."
+      - name: Decode and Debug OIDC Claims
+        env:
+          ID_TOKEN: ${{ env.ID_TOKEN }}
+        run: |
+          echo "Decoding the GitHub OIDC Token Payload..."
+          # A JWT is three parts separated by dots. We grab the middle part (payload), 
+          # pad it for valid base64 decoding, and format it nicely with jq!
+          PAYLOAD=$(echo "${ID_TOKEN}" | cut -d '.' -f 2)
+          # Use Python to safely decode the base64url payload without padding errors
+          python3 -c "import sys, base64, json; print(json.dumps(json.loads(base64.urlsafe_b64decode(sys.argv[1] + '==').decode('utf-8')), indent=2))" "$PAYLOAD"
 
       # 4. Exchange the GitHub Token for a JFrog Access Token
       - name: Exchange token with access
