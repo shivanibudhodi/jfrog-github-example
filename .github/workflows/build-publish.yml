@@ -1,45 +1,58 @@
 name: oidc-demo
 on:
-    push:
-        branches:
-            - '*'
-jobs:
-    auth:
-        permissions:
-            contents: read
-            id-token: write
-        runs-on: ubuntu-latest
-        steps:
-            - name: Debug OIDC Claims
-              uses: github/actions-oidc-debugger@main
-              with:
-                audience: '${{ github.server_url }}/${{ github.repository_owner }}'
+  push:
+    branches:
+      - '*'
 
-            - name: Get id token
-              env:
-                 OIDC_AUDIENCE: 'jfrog-github'
-                 OIDC_PROVIDER: 'demo-git-intergation'
-              run: |
-                    ID_TOKEN=$(curl -sLS -H "User-Agent: actions/oidc-client" -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-                    "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}" | jq .value | tr -d '"')
-                    echo "ID_TOKEN=${ID_TOKEN}" >> $GITHUB_ENV
-                    echo "$ID_TOKEN"
-            - name: Exchange token with access
-              env:
-                    ID_TOKEN: ${{env.ID_TOKEN}}
-                    JF_URL: ${{ vars.JF_URL }}
-              run: |
-                    ACCESS_TOKEN=$(curl -XPOST -H "Content-Type: application/json" "$JF_URL/access/api/v1/oidc/token" -d "{\"grant_type\": \"urn:ietf:params:oauth:grant-type:token-exchange\", \"subject_token_type\":\"urn:ietf:params:oauth:token-type:id_token\", \"subject_token\": \"${ID_TOKEN}\", \"provider_name\": \"demo-git-intergation\"}" | jq .access_token | tr -d '"')
-                    echo "ACCESS_TOKEN=${ACCESS_TOKEN}" >> $GITHUB_ENV
-            - name: list token  
-              env:
-                 OIDC_AUDIENCE: 'jfrog-github'
-                 OIDC_PROVIDER: 'demo-git-intergation'
-                 ACCESS_TOKEN: ${{ env.ACCESS_TOKEN }}
-                 JF_DOCKER_URL: ${{ vars.JF_DOCKER_URL }}
-              run: |
-                 #docker login $JF_DOCKER_URL --username shivani --password ${ACCESS_TOKEN}
-                 #docker pull JF_DOCKER_URL/hello-world
-                 # Securely pass the token via stdin
-                 echo "${ACCESS_TOKEN}" | docker login $JF_DOCKER_URL --username shivani --password-stdin
-                 docker pull $JF_DOCKER_URL/hello-world
+jobs:
+  auth:
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Check out the repository code (Crucial for Docker builds!)
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Debug step to see the exact OIDC claims GitHub is generating
+      - name: Debug OIDC Claims
+        uses: github/actions-oidc-debugger@main
+        with:
+          audience: '${{ github.server_url }}/${{ github.repository_owner }}'
+
+      # 3. Request the Identity Token from GitHub
+      - name: Get id token
+        env:
+          OIDC_AUDIENCE: 'jfrog-github'
+          OIDC_PROVIDER: 'demo-git-intergation'
+        run: |
+          ID_TOKEN=$(curl -sLS -H "User-Agent: actions/oidc-client" -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+          "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}" | jq .value | tr -d '"')
+          echo "ID_TOKEN=${ID_TOKEN}" >> $GITHUB_ENV
+          echo "Successfully retrieved GitHub ID Token"
+
+      # 4. Exchange the GitHub Token for a JFrog Access Token
+      - name: Exchange token with access
+        env:
+          ID_TOKEN: ${{ env.ID_TOKEN }}
+          JF_URL: ${{ vars.JF_URL }}
+        run: |
+          ACCESS_TOKEN=$(curl -XPOST -H "Content-Type: application/json" "$JF_URL/access/api/v1/oidc/token" -d "{\"grant_type\": \"urn:ietf:params:oauth:grant-type:token-exchange\", \"subject_token_type\":\"urn:ietf:params:oauth:token-type:id_token\", \"subject_token\": \"${ID_TOKEN}\", \"provider_name\": \"demo-git-intergation\"}" | jq .access_token | tr -d '"')
+          
+          # Mask the token so it NEVER prints in the GitHub Actions logs for security
+          echo "::add-mask::$ACCESS_TOKEN"
+          echo "ACCESS_TOKEN=${ACCESS_TOKEN}" >> $GITHUB_ENV
+
+      # 5. Authenticate with Docker and Pull/Build
+      - name: Docker Login and Execution
+        env:
+          ACCESS_TOKEN: ${{ env.ACCESS_TOKEN }}
+          JF_DOCKER_URL: ${{ vars.JF_DOCKER_URL }}
+        run: |
+          # Securely pass the JFrog token via stdin to bypass CLI warnings
+          echo "${ACCESS_TOKEN}" | docker login $JF_DOCKER_URL --username shivani --password-stdin
+          
+          # Example 1: Pulling an image
+          docker pull $JF_DOCKER_URL/hello-world
+          
