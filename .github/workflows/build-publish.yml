@@ -10,6 +10,11 @@ jobs:
             id-token: write
         runs-on: ubuntu-latest
         steps:
+            - name: Debug OIDC Claims
+              uses: github/actions-oidc-debugger@main
+              with:
+                audience: '${{ github.server_url }}/${{ github.repository_owner }}'
+
             - name: Get id token
               env:
                  OIDC_AUDIENCE: 'jfrog-github'
